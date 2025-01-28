@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_number TEXT,
   date_of_birth DATE,
   address TEXT,
+  role TEXT DEFAULT 'user',
   balance DECIMAL(12, 2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

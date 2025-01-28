@@ -46,10 +46,10 @@ const devDependencies = [
 
 try {
   console.log("Installing production dependencies...")
-  execSync(`npm install ${dependencies.join(" ")}`, { stdio: "inherit" })
+  execSync(`npm install --force ${dependencies.join(" ")}`, { stdio: "inherit" })
 
   console.log("\nInstalling development dependencies...")
-  execSync(`npm install -D ${devDependencies.join(" ")}`, { stdio: "inherit" })
+  execSync(`npm install --force -D ${devDependencies.join(" ")}`, { stdio: "inherit" })
 
   console.log(
     "\nAll dependencies, including Supabase Auth Helpers and form libraries, have been successfully installed!",
