@@ -1,47 +1,36 @@
-import { NextResponse } from "next/server"
-import { sendEmail } from "@/lib/email"
-import { supabase } from "@/lib/supabase"
-import { createAuditLog } from "@/lib/api"
+import { NextResponse } from "next/server";
+import { rejectUser, handleError, isAdmin } from "@/lib/api";
+import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
-    const { recipients, subject, message } = await req.json()
+    const { userId, reason } = await req.json();
+    const adminUserId = req.headers.get("X-User-Id");
 
-    // Verify admin status
-    const adminId = req.headers.get("X-User-Id")
-    if (!adminId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const { data: adminData } = await supabase.from("users").select("role").eq("id", adminId).single()
-    if (!adminData || adminData.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!adminUserId || !(await isAdmin(adminUserId))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch user emails
-    const { data: users, error: userError } = await supabase.from("users").select("email").in("id", recipients)
+    const { data, error } = await rejectUser(userId);
+    if (error) throw error;
 
-    if (userError) {
-      throw userError
+    if (!data) {
+      return NextResponse.json({ error: "User data not found" }, { status: 404 });
     }
 
-    // Send emails
-    const emailPromises = users.map((user) =>
-      sendEmail({
-        to: user.email,
-        subject,
-        html: message,
-      }),
-    )
+    // Send email notification
+    await sendEmail({
+      type: "account_rejection", // Correct value
+      to: data.email,
+      data: {
+        username: data.name,
+        reason: reason || "No reason provided.",
+      },
+    });
 
-    await Promise.all(emailPromises)
-
-    // Create audit log
-    await createAuditLog(adminId, "Send Bulk Email", `Sent email to ${recipients.length} users`)
-
-    return NextResponse.json({ success: true, message: "Emails sent successfully" })
-  } catch (error: any) {
-    console.error("Error sending emails:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ message: "User rejected and email sent", data });
+  } catch (error) {
+    console.error("Error in POST:", error);
+    return NextResponse.json(handleError(error), { status: 500 });
   }
 }
-

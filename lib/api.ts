@@ -1,5 +1,13 @@
 import { supabase } from "./supabase"
 
+interface User {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  // Add other relevant fields as needed
+}
+
 // User functions
 export const createUser = async (userData: any) => {
   const { data, error } = await supabase.from("users").insert([userData]).select()
@@ -64,6 +72,32 @@ export const updateUserStatus = async (userId: string, status: string) => {
   return { data, error }
 }
 
+export const approveUser = async (userId: string, approved: boolean) => {
+  const status = approved ? "approved" : "rejected";
+  const { data, error } = await supabase.from("users").update({ status }).eq("id", userId).select().single();
+  if (!error) {
+    await createAuditLog(userId, "User Status Updated", `User ${userId} status updated to ${status}`);
+  }
+  return { data, error };
+};
+
+export const rejectUser = async (userId: string) => {
+  const { data, error } = await supabase.from("users").update({ status: "rejected" }).eq("id", userId).select().single();
+  if (!error) {
+    await createAuditLog(userId, "User Status Updated", `User ${userId} status updated to rejected`);
+  }
+  return { data, error };
+};
+
+export const updateUserBalance = async (userId: string, balance: number) => {
+  const { data, error } = await supabase.from("users").update({ balance }).eq("id", userId).select().single();
+  if (!error) {
+    await createAuditLog(userId, "User Balance Updated", `User ${userId} balance updated to ${balance}`);
+  }
+  return { data, error };
+};
+
+
 export const getUserBanks = async (userId: string) => {
   const { data, error } = await supabase.from("user_banks").select("*, banks(*)").eq("user_id", userId)
   return { data, error }
@@ -106,4 +140,3 @@ export const createAuditLog = async (userId: string, action: string, details: st
   }
   return { data, error }
 }
-

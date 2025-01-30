@@ -1,40 +1,38 @@
-import { NextResponse } from "next/server"
-import { createUser, getAllUsers, handleError, isAdmin } from "@/lib/api"
-import { sendEmail } from "@/lib/email"
+import { NextResponse } from "next/server";
+import { updateUser, handleError, getUser } from "@/lib/api";
+import { sendEmail } from "@/lib/email";
+import { User } from "@/lib/definitions";
 
 export async function POST(req: Request) {
   try {
-    const userData = await req.json()
-    const { data, error } = await createUser(userData)
-    if (error) throw error
+    const body = await req.json();
+    const { userId, reason } = body;
 
-    // Send welcome email
-    await sendEmail({
-      to: userData.email,
-      subject: "Welcome to Cashora",
-      html: `
-        <h1>Welcome to Cashora!</h1>
-        <p>Your account has been created successfully. An admin will review your account shortly.</p>
-      `,
-    })
-
-    return NextResponse.json(data)
-  } catch (error) {
-    return NextResponse.json(handleError(error), { status: 500 })
-  }
-}
-
-export async function GET(req: Request) {
-  try {
-    const userId = req.headers.get("X-User-Id")
-    if (!userId || !(await isAdmin(userId))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!userId) {
+      throw new Error("Missing userId");
     }
-    const { data, error } = await getAllUsers()
-    if (error) throw error
-    return NextResponse.json(data)
+
+    const { data, error } = await getUser(userId);
+    if (error) throw error;
+
+    if (data) {
+      const updateData: Partial<User> = { approved: false }; // Fixed type issue
+      const { data: updatedUser, error: updateUserError } = await updateUser(
+        userId,
+        updateData
+      );
+      if (updateUserError) throw updateUserError;
+
+      if (updatedUser) {
+        await sendEmail({
+          to: data.email,
+          type: "account_rejection", // Correct value
+          data: { user: data, reason },
+        });
+      }
+      return NextResponse.json(updatedUser);
+    }
   } catch (error) {
-    return NextResponse.json(handleError(error), { status: 500 })
+    return NextResponse.json(handleError(error), { status: 500 });
   }
 }
-
