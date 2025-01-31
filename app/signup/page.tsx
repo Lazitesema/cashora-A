@@ -19,8 +19,22 @@ import { supabase } from "@/lib/supabase"; // Import supabase
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [placeOfBirth, setPlaceOfBirth] = useState("");
+  const [residence, setResidence] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [idCard, setIdCard] = useState<File | null>(null); // For ID card upload
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIdCard(e.target.files[0]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +57,13 @@ export default function SignUpPage() {
       const { error: userError } = await supabase.from("users").insert({
         id: data.user?.id,
         email,
-        first_name: "", // Placeholder, can be empty
-        last_name: "", // Placeholder, can be empty
+        first_name: firstName,
+        last_name: lastName,
+        username: username,
+        date_of_birth: dateOfBirth,
+        place_of_birth: placeOfBirth,
+        residence: residence,
+        nationality: nationality,
         role: "user", // Default role
         status: "pending",
       });
@@ -58,6 +77,23 @@ export default function SignUpPage() {
           variant: "destructive",
         });
       } else {
+          if (idCard) {
+            const { data: storageData, error: storageError } = await supabase.storage
+                .from("id-cards")
+                .upload(`${data.user?.id}/${idCard.name}`, idCard);
+
+            if (storageError) {
+                console.error("Error uploading ID card:", storageError);
+                toast({
+                    title: "Upload failed",
+                    description:
+                        "There was an error uploading your ID card. Please try again later.",
+                    variant: "destructive",
+                });
+            }
+            console.log("storageData", storageData);
+        }
+
         toast({
           title: "Sign up successful",
           description: "Your account has been created. Please wait for admin approval.",
@@ -65,6 +101,14 @@ export default function SignUpPage() {
         // Reset the form and navigate to home page
         setEmail("");
         setPassword("");
+        setFirstName("");
+        setLastName("");
+        setUsername("");
+        setDateOfBirth("");
+        setPlaceOfBirth("");
+        setResidence("");
+        setNationality("");
+        setIdCard(null);
         router.push("/");
       }
     }
@@ -85,6 +129,39 @@ export default function SignUpPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                type="text"
+                placeholder="John"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                type="text"
+                placeholder="Doe"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="johndoe123"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -96,12 +173,65 @@ export default function SignUpPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Create Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="placeOfBirth">Place of Birth</Label>
+              <Input
+                id="placeOfBirth"
+                type="text"
+                placeholder="New York"
+                value={placeOfBirth}
+                onChange={(e) => setPlaceOfBirth(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="residence">Residence</Label>
+              <Input
+                id="residence"
+                type="text"
+                placeholder="123 Main St, Anytown"
+                value={residence}
+                onChange={(e) => setResidence(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nationality">Nationality</Label>
+              <Input
+                id="nationality"
+                type="text"
+                placeholder="American"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="idCard">ID Card Upload</Label>
+              <Input
+                id="idCard"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
                 required
               />
             </div>
