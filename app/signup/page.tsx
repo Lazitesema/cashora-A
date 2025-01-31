@@ -28,6 +28,7 @@ export default function SignUpPage() {
   const [nationality, setNationality] = useState("");
   const [idCard, setIdCard] = useState<File | null>(null); // For ID card upload
   const [isLoading, setIsLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +40,13 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setPasswordError(null);
+
+    if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters.");
+      setIsLoading(false);
+      return;
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -49,12 +57,12 @@ export default function SignUpPage() {
       console.error("Supabase sign-up error:", error);
       toast({
         title: "Sign up failed",
-        description: "There was an error creating your account.",
+        description: error.message,
         variant: "destructive",
       });
     } else {
-      // Add user to the public.users table with 'pending' status
-      const { error: userError } = await supabase.from("users").insert({
+      // Data to be sent to public.users
+      const userData = {
         id: data.user?.id,
         email,
         first_name: firstName,
@@ -66,10 +74,15 @@ export default function SignUpPage() {
         nationality: nationality,
         role: "user", // Default role
         status: "pending",
-      });
+      };
+      console.log("userData to be sent:", userData);
+
+      // Add user to the public.users table with 'pending' status
+      const { error: userError } = await supabase.from("users").insert(userData);
 
       if (userError) {
         console.error("Error adding user to 'users' table:", userError);
+        console.log("userError:", userError);
         toast({
           title: "Sign up failed",
           description:
@@ -77,26 +90,27 @@ export default function SignUpPage() {
           variant: "destructive",
         });
       } else {
-          if (idCard) {
-            const { data: storageData, error: storageError } = await supabase.storage
-                .from("id-cards")
-                .upload(`${data.user?.id}/${idCard.name}`, idCard);
+        if (idCard) {
+          const { data: storageData, error: storageError } = await supabase.storage
+            .from("id-cards")
+            .upload(`${data.user?.id}/${idCard.name}`, idCard);
 
-            if (storageError) {
-                console.error("Error uploading ID card:", storageError);
-                toast({
-                    title: "Upload failed",
-                    description:
-                        "There was an error uploading your ID card. Please try again later.",
-                    variant: "destructive",
-                });
-            }
-            console.log("storageData", storageData);
+          if (storageError) {
+            console.error("Error uploading ID card:", storageError);
+            toast({
+              title: "Upload failed",
+              description:
+                "There was an error uploading your ID card. Please try again later.",
+              variant: "destructive",
+            });
+          }
+          console.log("storageData", storageData);
         }
 
         toast({
           title: "Sign up successful",
-          description: "Your account has been created. Please wait for admin approval.",
+          description:
+            "Your account has been created. Please wait for admin approval.",
         });
         // Reset the form and navigate to home page
         setEmail("");
@@ -181,6 +195,9 @@ export default function SignUpPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              {passwordError && (
+                <p className="text-red-500 text-sm">{passwordError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="dateOfBirth">Date of Birth</Label>
