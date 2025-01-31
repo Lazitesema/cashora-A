@@ -1,222 +1,122 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
-import { createUser } from "@/lib/api"
-import { supabase } from "@/lib/supabase"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase"; // Import supabase
 
 export default function SignUpPage() {
-  const router = useRouter()
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    username: "",
-    email: "",
-    dateOfBirth: "",
-    placeOfBirth: "",
-    residence: "",
-    nationality: "",
-    password: "",
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
+    setIsLoading(true);
 
-    // First, create the user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-    })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (authError) {
+    if (error) {
+      console.error("Supabase sign-up error:", error);
       toast({
-        title: "Sign Up Failed",
-        description: authError.message,
+        title: "Sign up failed",
+        description: "There was an error creating your account.",
         variant: "destructive",
-      })
-      return
-    }
+      });
+    } else {
+      // Add user to the public.users table with 'pending' status
+      const { error: userError } = await supabase.from("users").insert({
+        id: data.user?.id,
+        email,
+        first_name: "", // Placeholder, can be empty
+        last_name: "", // Placeholder, can be empty
+        role: "user", // Default role
+        status: "pending",
+      });
 
-    if (authData.user) {
-      // Now create the user profile in our users table
-      const { data, error } = await createUser({
-        id: authData.user.id,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        username: formData.username,
-        email: formData.email,
-        dateOfBirth: formData.dateOfBirth,
-        placeOfBirth: formData.placeOfBirth,
-        residence: formData.residence,
-        nationality: formData.nationality,
-      })
-
-      if (error) {
+      if (userError) {
+        console.error("Error adding user to 'users' table:", userError);
         toast({
-          title: "Profile Creation Failed",
-          description: error.message,
+          title: "Sign up failed",
+          description:
+            "Your account was created but there was an error processing your request.",
           variant: "destructive",
-        })
-        return
+        });
+      } else {
+        toast({
+          title: "Sign up successful",
+          description: "Your account has been created. Please wait for admin approval.",
+        });
+        // Reset the form and navigate to home page
+        setEmail("");
+        setPassword("");
+        router.push("/");
       }
-
-      toast({
-        title: "Sign Up Successful",
-        description: "Your account has been created. Please sign in.",
-      })
-      router.push("/signin")
     }
-  }
+    setIsLoading(false);
+  };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold">Create a Cashora Account</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Fill in your details to get started</p>
-        </div>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                name="firstName"
-                type="text"
-                required
-                value={formData.firstName}
-                onChange={handleChange}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                name="lastName"
-                type="text"
-                required
-                value={formData.lastName}
-                onChange={handleChange}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={formData.username}
-                onChange={handleChange}
-                className="mt-1"
-              />
-            </div>
-            <div>
+    <div className="min-h-screen bg-gradient-to-b from-primary/20 to-background flex items-center justify-center px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            Sign Up
+          </CardTitle>
+          <CardDescription className="text-center">
+            Create your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
-                name="email"
                 type="email"
+                placeholder="user@cashora.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                value={formData.email}
-                onChange={handleChange}
-                className="mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
               <Input
-                id="dateOfBirth"
-                name="dateOfBirth"
-                type="date"
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
-                value={formData.dateOfBirth}
-                onChange={handleChange}
-                className="mt-1"
               />
             </div>
-            <div>
-              <Label htmlFor="placeOfBirth">Place of Birth</Label>
-              <Input
-                id="placeOfBirth"
-                name="placeOfBirth"
-                type="text"
-                required
-                value={formData.placeOfBirth}
-                onChange={handleChange}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="residence">Residence</Label>
-              <Input
-                id="residence"
-                name="residence"
-                type="text"
-                required
-                value={formData.residence}
-                onChange={handleChange}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="nationality">Nationality</Label>
-              <Select
-                name="nationality"
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, nationality: value }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select your nationality" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="et">Ethiopia</SelectItem>
-                  <SelectItem value="ke">Kenya</SelectItem>
-                  <SelectItem value="ng">Nigeria</SelectItem>
-                  {/* Add more African countries as needed */}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              className="mt-1"
-            />
-          </div>
-          <Button type="submit" className="w-full">
-            Create Account
-          </Button>
-        </form>
-        <p className="text-center text-gray-600 dark:text-gray-400">
-          Already have an account?{" "}
-          <Link href="/signin" className="font-medium hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing up..." : "Sign Up"}
+            </Button>
+          </form>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <p className="text-sm text-muted-foreground">
+            By creating an account, you agree to our Terms of Service and
+            Privacy Policy.
+          </p>
+        </CardFooter>
+      </Card>
     </div>
-  )
+  );
 }
-

@@ -1,36 +1,62 @@
-import { NextResponse } from "next/server"
-import { updateUserStatus, handleError, isAdmin } from "@/lib/api"
-import { sendEmail } from "@/lib/email"
+import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
+import { sendEmail, EmailType } from "@/lib/email";
 
-export async function PUT(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const adminId = req.headers.get("X-User-Id")
-    if (!adminId || !(await isAdmin(adminId))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-    const { userId, status } = await req.json()
-    const { data, error } = await updateUserStatus(userId, status)
-    if (error) throw error
+    const { userId, newStatus } = await req.json();
 
-    // Send email notification
-    if (data) {
-      const emailSubject =
-        status === "approved" ? "Your Cashora Account Has Been Approved" : "Your Cashora Account Has Been Rejected"
-      const emailContent =
-        status === "approved"
-          ? "<h1>Your Cashora Account Has Been Approved</h1><p>You can now log in and start using our services.</p>"
-          : "<h1>Your Cashora Account Has Been Rejected</h1><p>Please contact our support team for more information.</p>"
-
-      await sendEmail({
-        to: data.email,
-        subject: emailSubject,
-        html: emailContent,
-      })
+    if (!userId || !newStatus) {
+      return NextResponse.json({ message: "User ID and new status are required" }, { status: 400 });
     }
 
-    return NextResponse.json(data)
+    // Get the user's email
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("email")
+      .eq("id", userId)
+      .single();
+
+    if (userError) {
+      console.error("Error getting user email:", userError);
+      return NextResponse.json({ message: "Error getting user email" }, { status: 500 });
+    }
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ status: newStatus })
+      .eq("id", userId);
+
+    if (updateError) {
+      console.error("Supabase update user error:", updateError);
+      return NextResponse.json({ message: "Error updating user status" }, { status: 500 });
+    }
+
+    // Send email to the user
+    const email = userData.email;
+    let emailType: EmailType;
+
+    if (newStatus === "approved") {
+      emailType = "account_approval";
+    } else if (newStatus === "rejected") {
+      emailType = "account_rejection";
+    } else {
+      return NextResponse.json({ message: "Invalid status" }, { status: 400 });
+    }
+
+    await sendEmail({
+      to: email,
+      type: emailType,
+      data: {
+        user: {
+            email
+        }
+      }
+    });
+
+    return NextResponse.json({ message: "User status updated successfully" }, { status: 200 });
   } catch (error) {
-    return NextResponse.json(handleError(error), { status: 500 })
+    console.error("Server error:", error);
+    return NextResponse.json({ message: "Internal server error" }, { status: 500 });
   }
 }
-

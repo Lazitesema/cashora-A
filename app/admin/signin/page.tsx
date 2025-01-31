@@ -8,29 +8,60 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "@/components/ui/use-toast"
+import { supabase } from "@/lib/supabase" // Import supabase
 
 export default function AdminSignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would typically handle authentication
-    // For now, we'll just simulate a successful login
-    if (email === 'admin@cashora.com' && password === 'admin123') {
-      localStorage.setItem('adminAuthenticated', 'true')
-      toast({
-        title: "Sign in successful",
-        description: "Welcome back, admin!",
-      })
-      router.push('/admin')
-    } else {
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      console.error("Supabase sign-in error:", error)
       toast({
         title: "Sign in failed",
         description: "Invalid email or password",
         variant: "destructive",
       })
+    } else {
+      // Check user role from the database
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+        if (userError) {
+        console.error("Error getting user role:", userError);
+        toast({
+          title: "Sign in failed",
+          description: "Error getting user role",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (user.role === 'admin') {
+        localStorage.setItem('adminAuthenticated', 'true');
+        toast({
+          title: "Sign in successful",
+          description: "Welcome back, admin!",
+        });
+        router.push('/admin');
+      } else {
+        toast({
+          title: "Sign in failed",
+          description: "You are not an admin",
+          variant: "destructive",
+        });
+      }
     }
   }
 
@@ -89,4 +120,3 @@ export default function AdminSignInPage() {
     </div>
   )
 }
-

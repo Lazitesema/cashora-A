@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Sidebar } from './components/sidebar'
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider"
 import { AdminHeader } from './components/admin-header'
 
@@ -45,7 +46,9 @@ export default function AdminLayout({
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <div className="flex flex-col md:flex-row min-h-screen bg-background text-foreground">
         <div className="hidden md:block">
-          <Sidebar />
+          <Sidebar>
+            <Link href="/admin/users">Users</Link>
+          </Sidebar>
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">
           <AdminHeader />
