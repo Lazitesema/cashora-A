@@ -29,6 +29,7 @@ export default function SignUpPage() {
   const [idCard, setIdCard] = useState<File | null>(null); // For ID card upload
   const [isLoading, setIsLoading] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [testColumn, setTestColumn] = useState("");
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +75,7 @@ export default function SignUpPage() {
         nationality: nationality,
         role: "user", // Default role
         status: "pending",
+        test_column: testColumn,
       };
       console.log("userData to be sent:", userData);
 
@@ -123,6 +125,7 @@ export default function SignUpPage() {
         setResidence("");
         setNationality("");
         setIdCard(null);
+        setTestColumn("");
         router.push("/");
       }
     }
@@ -239,6 +242,17 @@ export default function SignUpPage() {
                 placeholder="American"
                 value={nationality}
                 onChange={(e) => setNationality(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="testColumn">Test Column</Label>
+              <Input
+                id="testColumn"
+                type="text"
+                placeholder="Test value"
+                value={testColumn}
+                onChange={(e) => setTestColumn(e.target.value)}
                 required
               />
             </div>
